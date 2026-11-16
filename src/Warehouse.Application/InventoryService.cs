@@ -4,24 +4,27 @@ namespace Warehouse.Application;
 
 public sealed class InventoryService(IUnitOfWork work, ICurrentUser user, IClock clock) : ServiceBase(work, user, clock)
 {
-    public InventorySession Start(Guid warehouseId, IEnumerable<Guid> productIds) => Run(Permission.Inventory, s =>
+    public InventorySession Start(Guid warehouseId, IEnumerable<Guid> productIds)
     {
-        ActiveWarehouse(s, warehouseId);
-        Rules.Require(productIds != null, ErrorCode.Validation, "Product identifiers are required.");
-        var ids = productIds!.ToArray();
-        var lines = ids.Select(id =>
+        var input = Snapshot(productIds);
+        return Run(Permission.Inventory, s =>
         {
-            ActiveProduct(s, id);
-            var key = new StockKey(warehouseId, id);
-            Unlocked(s, key);
-            var stock = Balance(s, key);
-            return new InventoryLine(id, stock.Quantity, stock.Value);
-        }).ToArray();
-        var inventory = InventorySession.Start(Guid.NewGuid(), warehouseId, lines, Clock.UtcNow);
-        s.Inventories.Add(inventory);
-        Audit(s, "InventoryStarted", inventory.Id);
-        return inventory;
-    });
+            ActiveWarehouse(s, warehouseId);
+            var ids = input();
+            var lines = ids.Select(id =>
+            {
+                ActiveProduct(s, id);
+                var key = new StockKey(warehouseId, id);
+                Unlocked(s, key);
+                var stock = Balance(s, key);
+                return new InventoryLine(id, stock.Quantity, stock.Value);
+            }).ToArray();
+            var inventory = InventorySession.Start(Guid.NewGuid(), warehouseId, lines, Clock.UtcNow);
+            s.Inventories.Add(inventory);
+            Audit(s, "InventoryStarted", inventory.Id);
+            return inventory;
+        });
+    }
 
     public InventorySession Count(Guid id, Guid productId, decimal quantity, decimal? surplusUnitCost = null) => Run(Permission.Inventory, s =>
     {

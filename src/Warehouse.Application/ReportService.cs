@@ -48,7 +48,7 @@ public sealed class ReportService(IUnitOfWork work, ICurrentUser user, IClock cl
             {
                 var before = group.Where(x => x.OccurredAt < from).ToArray();
                 var period = group.Where(x => x.OccurredAt >= from).ToArray();
-                decimal Sum(IEnumerable<StockMovement> items, Func<StockMovement, decimal> selector) => Rules.Calculate(() => items.Sum(selector));
+                decimal Sum(IEnumerable<StockMovement> items, Func<StockMovement, decimal> selector) => Rules.Sum(items.Select(selector));
                 return new TurnoverRow(group.Key, Sum(before, x => x.Quantity), Sum(before, x => x.Value),
                     Sum(period.Where(x => x.Quantity > 0), x => x.Quantity), Sum(period.Where(x => x.Quantity > 0), x => x.Value),
                     -Sum(period.Where(x => x.Quantity < 0), x => x.Quantity), -Sum(period.Where(x => x.Quantity < 0), x => x.Value),
@@ -93,7 +93,7 @@ public sealed class ReportService(IUnitOfWork work, ICurrentUser user, IClock cl
         return exporter.Export(new ReportTable("Inventory reconciliation", ["Product", "Book quantity", "Book value", "Actual quantity", "Difference"], rows), format);
     }
 
-    private static string N(decimal value) => value.ToString(CultureInfo.InvariantCulture);
+    private static string N(decimal value) => value.ToString("0.############################", CultureInfo.InvariantCulture);
     private static IReadOnlyList<string> Row(params string[] cells) => Array.AsReadOnly(cells);
     private static IEnumerable<StockMovement> Filter(IWarehouseSession s, Guid? warehouseId, Guid? productId) =>
         s.Movements.All().Where(x => (warehouseId == null || x.Key.WarehouseId == warehouseId) && (productId == null || x.Key.ProductId == productId));

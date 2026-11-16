@@ -25,8 +25,8 @@ public abstract class ServiceBase(IUnitOfWork unitOfWork, ICurrentUser currentUs
         }
     }
 
-    protected void Audit(IWarehouseSession session, string action, Guid? entityId, Guid? actorId = null) =>
-        session.Audit.Add(new AuditEntry(Guid.NewGuid(), actorId ?? ActorId, action, entityId, Clock.UtcNow));
+    protected void Audit(IWarehouseSession session, string action, Guid? entityId) =>
+        session.Audit.Add(new AuditEntry(Guid.NewGuid(), ActorId, action, entityId, Clock.UtcNow));
 
     protected static T Get<T>(IReadRepository<T> repository, Guid id) where T : class =>
         repository.Find(Rules.Id(id)) ?? throw new WarehouseException(ErrorCode.NotFound, $"{typeof(T).Name} was not found.");
@@ -46,6 +46,17 @@ public abstract class ServiceBase(IUnitOfWork unitOfWork, ICurrentUser currentUs
     }
 
     protected static StockBalance Balance(IWarehouseSession session, StockKey key) => session.Stock.Find(key) ?? new StockBalance(key);
+
+    // Materialize caller input once, after authorization, and reuse it across transaction retries.
+    protected static Func<T[]> Snapshot<T>(IEnumerable<T> input)
+    {
+        T[]? cache = null;
+        return () =>
+        {
+            Rules.Require(input != null, ErrorCode.Validation, "Input collection is required.");
+            return cache ??= input!.ToArray();
+        };
+    }
 
     protected static void Unlocked(IWarehouseSession session, StockKey key, Guid? inventoryId = null) =>
         Rules.Require(!session.Inventories.All().Any(x => x.Status == InventoryStatus.Active && x.Id != inventoryId &&

@@ -26,7 +26,8 @@ public sealed record UserAccount
     {
         Id = Rules.Id(id);
         Login = Rules.Text(login);
-        PasswordHash = Rules.Text(passwordHash);
+        Rules.Text(passwordHash);
+        PasswordHash = passwordHash;
         Role = Rules.Defined(role);
         Rules.Require(failedAttempts is >= 0 and <= FailureLimit, ErrorCode.Validation, "Invalid login failure count.");
         FailedAttempts = failedAttempts;

@@ -20,7 +20,7 @@ public sealed record StockBalance
     {
         Rules.Positive(quantity);
         Rules.Require(quantity <= Quantity, ErrorCode.InsufficientStock, "Not enough stock.");
-        return quantity == Quantity ? Value : Rules.Calculate(() => Value * (quantity / Quantity));
+        return quantity == Quantity ? Value : DecimalMath.Proportion(Value, quantity, Quantity);
     }
 
     public StockBalance Apply(decimal quantity, decimal value)

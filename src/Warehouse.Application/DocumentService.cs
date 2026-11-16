@@ -4,26 +4,33 @@ namespace Warehouse.Application;
 
 public sealed class DocumentService(IUnitOfWork work, ICurrentUser user, IClock clock) : ServiceBase(work, user, clock)
 {
-    public StockDocument Create(DocumentKind kind, Guid warehouseId, IEnumerable<DocumentLine> lines, Guid? destinationId = null) =>
-        Run(Permission.ManageDocuments, s =>
+    public StockDocument Create(DocumentKind kind, Guid warehouseId, IEnumerable<DocumentLine> lines, Guid? destinationId = null)
+    {
+        var input = Snapshot(lines);
+        return Run(Permission.ManageDocuments, s =>
         {
             Rules.Require(kind is DocumentKind.Receipt or DocumentKind.Issue or DocumentKind.Transfer, ErrorCode.Forbidden,
                 "Inventory acts can only be created by inventory completion.");
-            var document = StockDocument.Draft(Guid.NewGuid(), kind, warehouseId, destinationId, lines, Clock.UtcNow);
+            var document = StockDocument.Draft(Guid.NewGuid(), kind, warehouseId, destinationId, input(), Clock.UtcNow);
             ValidateReferences(s, document);
             s.Documents.Add(document);
             Audit(s, "DocumentCreated", document.Id);
             return document;
         });
+    }
 
-    public StockDocument Edit(Guid id, IEnumerable<DocumentLine> lines) => Run(Permission.ManageDocuments, s =>
+    public StockDocument Edit(Guid id, IEnumerable<DocumentLine> lines)
     {
-        var document = Get(s.Documents, id).Edit(lines);
-        ValidateReferences(s, document);
-        s.Documents.Update(document);
-        Audit(s, "DocumentEdited", id);
-        return document;
-    });
+        var input = Snapshot(lines);
+        return Run(Permission.ManageDocuments, s =>
+        {
+            var document = Get(s.Documents, id).Edit(input());
+            ValidateReferences(s, document);
+            s.Documents.Update(document);
+            Audit(s, "DocumentEdited", id);
+            return document;
+        });
+    }
 
     public StockDocument GetDocument(Guid id) => Run(Permission.Read, s => Get(s.Documents, id));
     public IReadOnlyList<StockDocument> List() => Run(Permission.Read, s => s.Documents.All());
@@ -41,6 +48,7 @@ public sealed class DocumentService(IUnitOfWork work, ICurrentUser user, IClock 
     {
         var document = Get(s.Documents, id);
         var reversed = document.Reverse(Clock.UtcNow);
+        ValidateReferences(s, document);
         var originals = s.Movements.All().Where(x => x.DocumentId == id && x.ReversesMovementId == null).ToArray();
         Rules.Require(originals.Length > 0, ErrorCode.InvalidState, "The posted document has no movements.");
         foreach (var movement in originals)

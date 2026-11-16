@@ -59,7 +59,7 @@ public interface IWarehouseSession
 /// <summary>
 /// Executes a fresh, serializable transaction and commits only if the callback succeeds.
 /// Roll back ALL writes on error, including audit and numbering. Dispose before returning.
-/// Enforce unique SKU/barcode/login, unique stock keys and active inventory locks in storage.
+/// Enforce unique SKU/barcode/login/warehouse name, stock/minimum keys and active inventory locks in storage.
 /// Concurrent stock writes and inventory starts must conflict, including absent stock rows.
 /// Translate serialization/version/uniqueness races into ConcurrencyConflictException.
 /// Callbacks must not perform external side effects: a conflict reruns the entire callback.

@@ -53,4 +53,10 @@ public static class Rules
         try { return calculation(); }
         catch (OverflowException) { throw new WarehouseException(ErrorCode.Validation, "Decimal range exceeded."); }
     }
+
+    public static decimal Sum(IEnumerable<decimal> values)
+    {
+        Require(values != null, ErrorCode.Validation, "Values are required.");
+        return DecimalMath.Sum(values!);
+    }
 }
