@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Warehouse.Domain/Warehouse.Domain.csproj" />
+  </ItemGroup>
+</Project>
