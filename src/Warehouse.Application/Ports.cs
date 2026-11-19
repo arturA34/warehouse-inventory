@@ -14,7 +14,7 @@ public interface IRepository<T> : IReadRepository<T>
     void Update(T entity);
 }
 
-/// <summary>Append-only port: historical movements and audit entries cannot be edited or removed.</summary>
+/// <summary>Движения и записи аудита можно только читать и добавлять.</summary>
 public interface IAppendRepository<T> : IReadRepository<T>
 {
     void Add(T entity);
@@ -24,7 +24,7 @@ public sealed record ProductPage(IReadOnlyList<Product> Items, int Total);
 
 public interface IProductRepository : IRepository<Product>
 {
-    // SKU and login uniqueness is ordinal case-insensitive; barcodes are trimmed, ordinal exact strings.
+    // Артикул сравниваем без учёта регистра (OrdinalIgnoreCase), штрихкод — посимвольно после Trim.
     Product? BySku(string sku);
     Product? ByBarcode(string barcode);
     ProductPage Search(string query, bool includeArchived, int skip, int take);
@@ -57,12 +57,12 @@ public interface IWarehouseSession
 }
 
 /// <summary>
-/// Executes a fresh, serializable transaction and commits only if the callback succeeds.
-/// Roll back ALL writes on error, including audit and numbering. Dispose before returning.
-/// Enforce unique SKU/barcode/login/warehouse name, stock/minimum keys and active inventory locks in storage.
-/// Concurrent stock writes and inventory starts must conflict, including absent stock rows.
-/// Translate serialization/version/uniqueness races into ConcurrencyConflictException.
-/// Callbacks must not perform external side effects: a conflict reruns the entire callback.
+/// Каждый вызов открывает новую сериализуемую транзакцию и закрывает её до возврата.
+/// При ошибке откатываем всё, включая номер документа и запись аудита.
+/// База обеспечивает уникальность артикулов, штрихкодов, логинов, названий складов и ключей остатков и порогов. Логины сравниваются через OrdinalIgnoreCase.
+/// Параллельные записи одного остатка конфликтуют. Активная ревизия блокирует и движение, и вторую ревизию той же позиции, даже при нулевом остатке.
+/// Конфликты версий, сериализации и гонки при проверке уникальности переводим в ConcurrencyConflictException.
+/// При конфликте операция выполняется заново, поэтому файлы записываем после транзакции.
 /// </summary>
 public interface IUnitOfWork
 {
@@ -71,11 +71,11 @@ public interface IUnitOfWork
 
 public sealed class ConcurrencyConflictException(string message = "Concurrent change detected.") : Exception(message);
 
-/// <summary>Trusted host identity established by authentication, never a role supplied by the caller.</summary>
+/// <summary>Хост передаёт идентификатор вошедшего пользователя. Его текущую роль сервис читает из хранилища.</summary>
 public interface ICurrentUser { Guid? UserId { get; } }
 public interface IClock { DateTimeOffset UtcNow { get; } }
 
-/// <summary>Production infrastructure must implement Argon2id with per-password salts.</summary>
+/// <summary>В рабочем приложении используется Argon2id с отдельной солью для каждого пароля.</summary>
 public interface IPasswordHasher
 {
     string Hash(string password);
@@ -86,5 +86,5 @@ public enum ExportFormat { Excel, Pdf }
 public sealed record ReportTable(string Title, IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows);
 public sealed record ReportFile(string Name, string ContentType, ReadOnlyMemory<byte> Content);
 
-/// <summary>Implemented with ClosedXML and QuestPDF in infrastructure.</summary>
+/// <summary>За запись файлов отвечают ClosedXML и QuestPDF в инфраструктурном слое.</summary>
 public interface IReportExporter { ReportFile Export(ReportTable report, ExportFormat format); }

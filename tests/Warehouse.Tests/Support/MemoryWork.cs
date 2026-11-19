@@ -3,7 +3,7 @@ using Warehouse.Domain;
 
 namespace Warehouse.Tests.Support;
 
-// Test adapter only. It models the unit-of-work contract; it is not a production database.
+// Для тестов храним данные в памяти. Изменения становятся видны после фиксации транзакции.
 internal sealed class MemoryWork : IUnitOfWork
 {
     private readonly object gate = new();
@@ -121,7 +121,7 @@ internal sealed class TestClock : IClock
     public DateTimeOffset UtcNow { get; set; } = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
 }
 
-// Deliberately fake password hashing; production Argon2id belongs to Infrastructure.
+// Тестовый хешер нужен только для проверки сценариев входа.
 internal sealed class TestPasswords : IPasswordHasher
 {
     public string Hash(string password) => "test-only:" + password;

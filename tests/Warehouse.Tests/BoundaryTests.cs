@@ -3,6 +3,73 @@ namespace Warehouse.Tests;
 public sealed class BoundaryTests
 {
     [Fact]
+    public void A_receipt_cannot_record_a_fraction_that_disappears_from_the_balance()
+    {
+        var w = new World();
+        w.Receipt(decimal.MaxValue, 0);
+        var draft = w.Documents.Create(DocumentKind.Receipt, w.A.Id, [new(w.P.Id, 0.1m, 0)]);
+        Check.Error(ErrorCode.Validation, () => w.Documents.Post(draft.Id));
+        Assert.Equal(DocumentStatus.Draft, w.Documents.GetDocument(draft.Id).Status);
+        Assert.Single(w.Read(s => s.Movements.All()));
+        Assert.Equal(decimal.MaxValue, w.Stock().Quantity);
+    }
+
+    [Fact]
+    public void Partial_issue_and_remaining_value_add_up_exactly()
+    {
+        var balance = new StockBalance(new StockKey(Guid.NewGuid(), Guid.NewGuid()), 999, 1000);
+        var issued = balance.IssueValue(1);
+        var remaining = balance.Apply(-1, -issued);
+        Assert.Equal(0, Rules.Sum([issued, remaining.Value, -balance.Value]));
+        Assert.Equal(balance, remaining.Apply(1, issued));
+    }
+
+    [Fact]
+    public void Inventory_cannot_lose_a_fraction_in_a_scan_or_a_discrepancy()
+    {
+        var w = new World();
+        w.Receipt(decimal.MaxValue, 0);
+        var inventory = w.Inventories.Start(w.A.Id, [w.P.Id]);
+        w.Inventories.Count(inventory.Id, w.P.Id, decimal.MaxValue);
+        Check.Error(ErrorCode.Validation, () => w.Inventories.Scan(inventory.Id, w.P.Barcode, 0.1m));
+        Check.Error(ErrorCode.Validation, () => w.Inventories.Count(inventory.Id, w.P.Id, 0.1m));
+        Assert.Equal(decimal.MaxValue, Assert.Single(w.Inventories.GetInventory(inventory.Id).Lines).ActualQuantity);
+    }
+
+    [Fact]
+    public void Active_count_keeps_its_unit_even_before_the_first_movement()
+    {
+        var w = new World();
+        var p = w.P;
+        var inventory = w.Inventories.Start(w.A.Id, [p.Id]);
+        w.Inventories.Count(inventory.Id, p.Id, 5, 1);
+        Check.Error(ErrorCode.InventoryLocked, () => w.Catalog.UpdateProduct(p.Id, p.Sku, p.Barcode, p.Name, "box"));
+        Assert.Equal(p.Unit, w.Catalog.GetProduct(p.Id).Unit);
+        w.Inventories.Cancel(inventory.Id);
+        Assert.Equal("box", w.Catalog.UpdateProduct(p.Id, p.Sku, p.Barcode, p.Name, "box").Unit);
+    }
+
+    private sealed class AdvancingClock(DateTimeOffset start) : IClock
+    {
+        private long ticks;
+        public DateTimeOffset UtcNow => start.AddTicks(++ticks);
+    }
+
+    [Fact]
+    public void Period_ending_at_reversal_includes_both_sides_of_a_transfer()
+    {
+        var w = new World();
+        w.Receipt(3, 2);
+        var draft = w.Documents.Create(DocumentKind.Transfer, w.A.Id, [new(w.P.Id, 2)], w.B.Id);
+        w.Documents.Post(draft.Id);
+        var documents = new DocumentService(w.Work, w.Identity, new AdvancingClock(w.Clock.UtcNow));
+        var time = documents.Reverse(draft.Id).ReversedAt!.Value;
+        var movements = w.Reports.Movements(time, time);
+        Assert.Equal(2, movements.Count);
+        Assert.Equal(0, movements.Sum(x => x.Quantity));
+    }
+
+    [Fact]
     public void Summation_is_exact_order_independent_and_checks_final_decimal_range()
     {
         var maximum = decimal.MaxValue;
@@ -10,6 +77,8 @@ public sealed class BoundaryTests
         Assert.Equal(maximum, Rules.Sum([maximum, maximum, -maximum]));
         Assert.Equal(-maximum, Rules.Sum([-maximum, -maximum, maximum]));
         Assert.Equal(minimumUnit, Rules.Sum([maximum, minimumUnit, -maximum]));
+        Assert.Equal(maximum, Rules.Sum([maximum - 1, 0.5m, 0.5m]));
+        Check.Error(ErrorCode.Validation, () => Rules.Sum([maximum, minimumUnit]));
         Assert.Equal(0, Rules.Sum([]));
         Assert.Equal(-0.25m, Rules.Sum([1.5m, -1.75m]));
         Check.Error(ErrorCode.Validation, () => Rules.Sum([maximum, 1]));
@@ -23,7 +92,7 @@ public sealed class BoundaryTests
         var w = new World();
         var key = new StockKey(w.A.Id, w.P.Id);
         var first = w.Clock.UtcNow;
-        // A valid history is receipt -> full issue -> receipt; repository order is not chronological.
+        // По времени здесь приход, полное списание и ещё один приход. Хранилище отдаёт их вперемешку.
         w.Work.Seed(new StockMovement(Guid.NewGuid(), Guid.NewGuid(), key, decimal.MaxValue, decimal.MaxValue, first.AddSeconds(2)));
         w.Work.Seed(new StockMovement(Guid.NewGuid(), Guid.NewGuid(), key, decimal.MaxValue, decimal.MaxValue, first));
         w.Work.Seed(new StockMovement(Guid.NewGuid(), Guid.NewGuid(), key, -decimal.MaxValue, -decimal.MaxValue, first.AddSeconds(1)));
@@ -34,7 +103,7 @@ public sealed class BoundaryTests
         Assert.Equal(decimal.MaxValue, row.ReceivedValue);
         Assert.Equal(decimal.MaxValue, row.ClosingQuantity);
         Assert.Equal(decimal.MaxValue, row.ClosingValue);
-        Check.Error(ErrorCode.Validation, () => w.Reports.Turnover(first, first.AddSeconds(2))); // Period receipts exceed decimal range.
+        Check.Error(ErrorCode.Validation, () => w.Reports.Turnover(first, first.AddSeconds(2))); // Сумма приходов за весь период выходит за диапазон decimal.
     }
 
     [Fact]
@@ -87,7 +156,7 @@ public sealed class BoundaryTests
         var w = new World();
         var document = StockDocument.Draft(Guid.NewGuid(), DocumentKind.Receipt, w.A.Id, null,
             [new(w.P.Id, 1, 2)], w.Clock.UtcNow).Post(7, w.Clock.UtcNow);
-        w.Work.Seed(document); // Simulate incomplete/corrupted infrastructure state.
+        w.Work.Seed(document); // В хранилище есть проведённый документ, но потеряны его движения.
         Check.Error(ErrorCode.InvalidState, () => w.Documents.Reverse(document.Id));
         Assert.Equal(DocumentStatus.Posted, w.Documents.GetDocument(document.Id).Status);
         Assert.Empty(w.Read(s => s.Movements.All()));

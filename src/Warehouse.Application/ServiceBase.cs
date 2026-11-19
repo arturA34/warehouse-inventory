@@ -47,7 +47,7 @@ public abstract class ServiceBase(IUnitOfWork unitOfWork, ICurrentUser currentUs
 
     protected static StockBalance Balance(IWarehouseSession session, StockKey key) => session.Stock.Find(key) ?? new StockBalance(key);
 
-    // Materialize caller input once, after authorization, and reuse it across transaction retries.
+    // Читаем входные строки после проверки прав. При повторе берём ту же копию.
     protected static Func<T[]> Snapshot<T>(IEnumerable<T> input)
     {
         T[]? cache = null;

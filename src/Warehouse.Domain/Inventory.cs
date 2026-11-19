@@ -9,7 +9,7 @@ public sealed record InventoryLine
     public decimal BookValue { get; }
     public decimal? ActualQuantity { get; }
     public decimal? SurplusUnitCost { get; }
-    public decimal? Difference => ActualQuantity is { } actual ? actual - BookQuantity : null;
+    public decimal? Difference { get; }
 
     public InventoryLine(Guid productId, decimal bookQuantity, decimal bookValue,
         decimal? actualQuantity = null, decimal? surplusUnitCost = null)
@@ -19,6 +19,7 @@ public sealed record InventoryLine
         BookValue = Rules.Nonnegative(bookValue);
         Rules.Require(bookQuantity != 0 || bookValue == 0, ErrorCode.InvalidValuation, "Empty stock cannot retain value.");
         ActualQuantity = actualQuantity is { } actual ? Rules.Nonnegative(actual) : null;
+        Difference = ActualQuantity is { } count ? Rules.Sum([count, -BookQuantity]) : null;
         SurplusUnitCost = surplusUnitCost is { } cost ? Rules.Nonnegative(cost) : null;
     }
 
@@ -81,7 +82,7 @@ public sealed record InventorySession
         Rules.Positive(increment);
         var line = Lines.SingleOrDefault(x => x.ProductId == productId)
             ?? throw new WarehouseException(ErrorCode.NotFound, "Product is outside this inventory.");
-        return Count(productId, Rules.Calculate(() => (line.ActualQuantity ?? 0) + increment), line.SurplusUnitCost);
+        return Count(productId, Rules.Sum([line.ActualQuantity ?? 0, increment]), line.SurplusUnitCost);
     }
 
     public InventorySession Complete(IEnumerable<Guid> adjustmentDocumentIds, DateTimeOffset now)

@@ -100,7 +100,7 @@ public sealed class DomainTests
         Assert.Equal(612.5m, final.Value);
         Assert.Equal(612.5m, final.IssueValue(35));
         Assert.Equal(new StockBalance(Key), final.Apply(-35, -612.5m));
-        Assert.Equal(700, stock.Value); // Original values are immutable.
+        Assert.Equal(700, stock.Value); // Исходный остаток сохранился.
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class DomainTests
         Assert.Equal(2, new StockBalance(Key, 0.75m, 6).IssueValue(0.25m));
         Assert.Equal(1, new StockBalance(Key, decimal.MaxValue, decimal.MaxValue).IssueValue(1));
         Assert.Equal(5, new StockBalance(Key, 2 * tiny, 10).IssueValue(tiny));
-        Assert.Equal(0, new StockBalance(Key, 2, tiny).IssueValue(1)); // Halfway to minimum representable value, ties to even.
+        Assert.Equal(0, new StockBalance(Key, 2, tiny).IssueValue(1)); // Ровно половина минимального шага округляется к чётному.
         Assert.Equal(2 * tiny, new StockBalance(Key, 2, 3 * tiny).IssueValue(1));
         Assert.Equal(tiny, new StockBalance(Key, 3, 2 * tiny).IssueValue(1));
         Assert.Equal(decimal.MaxValue - 1, new StockBalance(Key, decimal.MaxValue, decimal.MaxValue).IssueValue(decimal.MaxValue - 1));

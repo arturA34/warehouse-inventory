@@ -12,7 +12,7 @@ public sealed class AccountingSequenceTests
         var random = new Random(seed);
         var sites = new[] { w.A.Id, w.B.Id };
         var products = new[] { w.P.Id, w.Q.Id };
-        // The oracle counts quarter-units as integers; all input prices are exactly 8.
+        // Для сверки считаем четверти штуки целыми числами. Цена во всём примере равна 8.
         var expected = new int[2, 2];
         long nextNumber = 1;
         for (var step = 0; step < 150; step++)

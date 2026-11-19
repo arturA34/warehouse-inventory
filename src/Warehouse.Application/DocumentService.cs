@@ -47,14 +47,15 @@ public sealed class DocumentService(IUnitOfWork work, ICurrentUser user, IClock 
     public StockDocument Reverse(Guid id) => Run(Permission.ReverseDocuments, s =>
     {
         var document = Get(s.Documents, id);
-        var reversed = document.Reverse(Clock.UtcNow);
+        var now = Clock.UtcNow;
+        var reversed = document.Reverse(now);
         ValidateReferences(s, document);
         var originals = s.Movements.All().Where(x => x.DocumentId == id && x.ReversesMovementId == null).ToArray();
         Rules.Require(originals.Length > 0, ErrorCode.InvalidState, "The posted document has no movements.");
         foreach (var movement in originals)
         {
             Unlocked(s, movement.Key);
-            var inverse = new StockMovement(Guid.NewGuid(), id, movement.Key, -movement.Quantity, -movement.Value, Clock.UtcNow, movement.Id);
+            var inverse = new StockMovement(Guid.NewGuid(), id, movement.Key, -movement.Quantity, -movement.Value, now, movement.Id);
             s.Stock.Put(Balance(s, movement.Key).Apply(inverse.Quantity, inverse.Value));
             s.Movements.Add(inverse);
         }

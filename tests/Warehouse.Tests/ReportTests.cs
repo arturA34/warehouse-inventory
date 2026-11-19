@@ -56,7 +56,7 @@ public sealed class ReportTests
         var to = w.Clock.UtcNow;
         w.Issue(5);
         w.Clock.UtcNow = to.AddTicks(1);
-        w.Receipt(1, 1000); // Must be excluded.
+        w.Receipt(1, 1000); // Этот приход уже за границей периода.
         var row = Assert.Single(w.Reports.Turnover(from, to, w.A.Id, w.P.Id));
         Assert.Equal((10m, 100m), (row.OpeningQuantity, row.OpeningValue));
         Assert.Equal((10m, 200m), (row.ReceivedQuantity, row.ReceivedValue));

@@ -6,27 +6,40 @@ internal static class DecimalMath
 {
     private static readonly BigInteger Maximum = (BigInteger.One << 96) - 1;
 
-    // Exact rational arithmetic avoids intermediate overflow and double rounding.
-    // Retain up to 28 decimal places; round once, midpoint to even, as decimal does.
+    // При списании сначала считаем дробь целиком, потом один раз округляем её до decimal.
     public static decimal Proportion(decimal value, decimal part, decimal total)
     {
-        var (v, vs) = Parts(value);
-        var (p, ps) = Parts(part);
-        var (t, ts) = Parts(total);
-        var numerator = v * p * BigInteger.Pow(10, ts);
-        var denominator = t * BigInteger.Pow(10, vs + ps);
+        var (amount, amountScale) = Parts(value);
+        var (quantity, quantityScale) = Parts(part);
+        var (stock, stockScale) = Parts(total);
+        var numerator = amount * quantity * BigInteger.Pow(10, stockScale);
+        var denominator = stock * BigInteger.Pow(10, amountScale + quantityScale);
         return Round(numerator, denominator);
     }
 
     public static decimal Sum(IEnumerable<decimal> values)
     {
         var sum = BigInteger.Zero;
+        var scale = 0;
         foreach (var value in values)
         {
-            var (coefficient, scale) = Parts(value);
-            sum += coefficient * BigInteger.Pow(10, 28 - scale);
+            var (coefficient, valueScale) = Parts(value);
+            if (valueScale > scale)
+            {
+                sum *= BigInteger.Pow(10, valueScale - scale);
+                scale = valueScale;
+            }
+            sum += coefficient * BigInteger.Pow(10, scale - valueScale);
         }
-        return Round(sum, BigInteger.Pow(10, 28));
+        // Остаток должен совпасть с движениями до последнего знака.
+        // Убирать можно только нули в конце дробной части.
+        while (BigInteger.Abs(sum) > Maximum && scale > 0 && sum % 10 == 0)
+        {
+            sum /= 10;
+            scale--;
+        }
+        Rules.Require(BigInteger.Abs(sum) <= Maximum, ErrorCode.Validation, "Sum cannot be represented exactly.");
+        return ToDecimal(BigInteger.Abs(sum), sum.Sign < 0, scale);
     }
 
     private static decimal Round(BigInteger numerator, BigInteger denominator)
@@ -39,11 +52,15 @@ internal static class DecimalMath
             var comparison = (remainder * 2).CompareTo(denominator);
             if (comparison > 0 || comparison == 0 && !quotient.IsEven) quotient++;
             if (quotient > Maximum) continue;
-            return new decimal(unchecked((int)(uint)(quotient & uint.MaxValue)),
-                unchecked((int)(uint)((quotient >> 32) & uint.MaxValue)),
-                unchecked((int)(uint)((quotient >> 64) & uint.MaxValue)), negative, (byte)scale);
+            return ToDecimal(quotient, negative, scale);
         }
         throw new WarehouseException(ErrorCode.Validation, "Decimal range exceeded.");
+    }
+
+    private static decimal ToDecimal(BigInteger magnitude, bool negative, int scale)
+    {
+        int Word(int shift) => unchecked((int)(uint)((magnitude >> shift) & uint.MaxValue));
+        return new decimal(Word(0), Word(32), Word(64), negative, (byte)scale);
     }
 
     private static (BigInteger Coefficient, int Scale) Parts(decimal value)

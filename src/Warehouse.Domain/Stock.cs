@@ -20,15 +20,20 @@ public sealed record StockBalance
     {
         Rules.Positive(quantity);
         Rules.Require(quantity <= Quantity, ErrorCode.InsufficientStock, "Not enough stock.");
-        return quantity == Quantity ? Value : DecimalMath.Proportion(Value, quantity, Quantity);
+        if (quantity == Quantity) return Value;
+        var issue = DecimalMath.Proportion(Value, quantity, Quantity);
+        // У большей из двух частей меньше места для дробных знаков.
+        // Сначала фиксируем её, а меньшую берём как точную разницу.
+        var remaining = Value - issue;
+        return issue < remaining ? Value - remaining : issue;
     }
 
     public StockBalance Apply(decimal quantity, decimal value)
     {
         Rules.Require(quantity != 0, ErrorCode.Validation, "A movement must change quantity.");
         Rules.Require(value == 0 || Math.Sign(value) == Math.Sign(quantity), ErrorCode.InvalidValuation, "Quantity and value must have the same sign.");
-        var nextQuantity = Rules.Calculate(() => Quantity + quantity);
-        var nextValue = Rules.Calculate(() => Value + value);
+        var nextQuantity = Rules.Sum([Quantity, quantity]);
+        var nextValue = Rules.Sum([Value, value]);
         Rules.Require(nextQuantity >= 0, ErrorCode.InsufficientStock, "Not enough stock.");
         Rules.Require(nextValue >= 0 && (nextQuantity != 0 || nextValue == 0), ErrorCode.InvalidValuation,
             "Reversal is incompatible with subsequent valuation. Reverse dependent documents first.");

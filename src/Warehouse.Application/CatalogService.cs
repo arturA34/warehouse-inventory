@@ -16,9 +16,12 @@ public sealed class CatalogService(IUnitOfWork work, ICurrentUser user, IClock c
     public Product UpdateProduct(Guid id, string sku, string barcode, string name, string unit) => Run(Permission.ManageCatalog, s =>
     {
         var old = Get(s.Products, id);
-        // Changing units of existing stock would change the meaning of historical quantities.
-        Rules.Require(old.Unit == Rules.Text(unit) || !s.Movements.All().Any(x => x.Key.ProductId == id),
-            ErrorCode.InvalidState, "A product with movements cannot change its unit.");
+        if (old.Unit != Rules.Text(unit))
+        {
+            Rules.Require(!s.Movements.All().Any(x => x.Key.ProductId == id),
+                ErrorCode.InvalidState, "A product with movements cannot change its unit.");
+            RequireOutsideInventory(s, id);
+        }
         var product = new Product(id, sku, barcode, name, unit, old.IsActive);
         Unique(s, product);
         s.Products.Update(product);
@@ -32,8 +35,7 @@ public sealed class CatalogService(IUnitOfWork work, ICurrentUser user, IClock c
         if (!active)
         {
             Rules.Require(!s.Stock.All().Any(x => x.Key.ProductId == id && x.Quantity != 0), ErrorCode.InvalidState, "A stocked product cannot be archived.");
-            Rules.Require(!s.Inventories.All().Any(x => x.Status == InventoryStatus.Active && x.Lines.Any(l => l.ProductId == id)),
-                ErrorCode.InventoryLocked, "An inventory product cannot be archived.");
+            RequireOutsideInventory(s, id);
         }
         var product = new Product(id, old.Sku, old.Barcode, old.Name, old.Unit, active);
         s.Products.Update(product);
@@ -85,10 +87,20 @@ public sealed class CatalogService(IUnitOfWork work, ICurrentUser user, IClock c
         var key = new StockKey(warehouseId, productId);
         var previous = s.Minimums.All().SingleOrDefault(x => x.Key == key);
         var threshold = new MinimumStock(previous?.Id ?? Guid.NewGuid(), key, quantity);
-        if (previous == null) s.Minimums.Add(threshold); else s.Minimums.Update(threshold);
+        if (previous == null)
+            s.Minimums.Add(threshold);
+        else
+            s.Minimums.Update(threshold);
         Audit(s, "MinimumStockSet", threshold.Id);
         return threshold;
     });
+
+    private static void RequireOutsideInventory(IWarehouseSession session, Guid productId)
+    {
+        var inUse = session.Inventories.All().Any(inventory => inventory.Status == InventoryStatus.Active
+            && inventory.Lines.Any(line => line.ProductId == productId));
+        Rules.Require(!inUse, ErrorCode.InventoryLocked, "The product is part of an active inventory.");
+    }
 
     private static void Unique(IWarehouseSession s, Product product)
     {

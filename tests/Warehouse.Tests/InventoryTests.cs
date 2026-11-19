@@ -26,7 +26,7 @@ public sealed class InventoryTests
         Assert.Single(acts, x => x.Kind == DocumentKind.InventoryShortage);
         Assert.Equal(-2, w.Inventories.GetInventory(inventory.Id).Lines[0].Difference);
         Assert.Single(w.Inventories.List());
-        w.Issue(1); // Completion releases locks.
+        w.Issue(1); // После завершения ревизии снова можно списывать.
         Check.Error(ErrorCode.InvalidState, () => w.Inventories.Complete(inventory.Id));
         Check.Error(ErrorCode.InvalidState, () => w.Inventories.Cancel(inventory.Id));
         Check.Error(ErrorCode.InvalidState, () => w.Inventories.Count(inventory.Id, w.P.Id, 1));
@@ -113,10 +113,10 @@ public sealed class InventoryTests
         };
         foreach (var document in drafts) Check.Error(ErrorCode.InventoryLocked, () => w.Documents.Post(document.Id));
         Check.Error(ErrorCode.InventoryLocked, () => w.Documents.Reverse(receipt.Id));
-        Assert.Equal(10, w.Stock(w.B.Id).Quantity); // Target-lock failure rolls back source issue.
+        Assert.Equal(10, w.Stock(w.B.Id).Quantity); // Блокировка на складе назначения откатывает списание у отправителя.
         Check.Error(ErrorCode.InventoryLocked, () => w.Inventories.Start(w.A.Id, [w.P.Id]));
-        w.Receipt(1, 2, productId: w.Q.Id); // Other product is independent.
-        w.Issue(1, w.B.Id); // Other warehouse is independent.
+        w.Receipt(1, 2, productId: w.Q.Id); // Другой товар доступен.
+        w.Issue(1, w.B.Id); // На другом складе тот же товар доступен.
         var other = w.Inventories.Start(w.A.Id, [w.Q.Id]);
         w.Inventories.Cancel(other.Id);
         w.Inventories.Cancel(inventory.Id);

@@ -19,7 +19,7 @@ public sealed class ReportService(IUnitOfWork work, ICurrentUser user, IClock cl
         var thresholds = s.Minimums.All().ToDictionary(x => x.Key, x => x.Quantity);
         var products = s.Products.All().ToDictionary(x => x.Id);
         var warehouses = s.Warehouses.All().ToDictionary(x => x.Id);
-        // Include configured thresholds without a stock row (zero stock must still trigger an alert).
+        // Если для товара задан минимум, нулевой остаток тоже должен попасть в отчёт.
         return stock.Keys.Union(thresholds.Keys).Where(x => warehouseId == null || x.WarehouseId == warehouseId)
             .Select(key =>
             {
@@ -39,26 +39,27 @@ public sealed class ReportService(IUnitOfWork work, ICurrentUser user, IClock cl
                 .OrderBy(x => x.OccurredAt).ThenBy(x => x.Id).ToArray();
         });
 
-    /// <summary>Opening balances exclude 'from'; both period boundaries are inclusive.</summary>
+    /// <summary>Начальный остаток считаем до начала периода. В обороты входят обе границы периода.</summary>
     public IReadOnlyList<TurnoverRow> Turnover(DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null, Guid? productId = null) =>
         Run(Permission.Read, s =>
         {
             ValidateRange(s, from, to, warehouseId, productId);
             return Filter(s, warehouseId, productId).Where(x => x.OccurredAt <= to).GroupBy(x => x.Key).Select(group =>
             {
-                var before = group.Where(x => x.OccurredAt < from).ToArray();
-                var period = group.Where(x => x.OccurredAt >= from).ToArray();
+                var before = group.Where(x => x.OccurredAt < from);
+                var received = group.Where(x => x.OccurredAt >= from && x.Quantity > 0);
+                var issued = group.Where(x => x.OccurredAt >= from && x.Quantity < 0);
                 decimal Sum(IEnumerable<StockMovement> items, Func<StockMovement, decimal> selector) => Rules.Sum(items.Select(selector));
                 return new TurnoverRow(group.Key, Sum(before, x => x.Quantity), Sum(before, x => x.Value),
-                    Sum(period.Where(x => x.Quantity > 0), x => x.Quantity), Sum(period.Where(x => x.Quantity > 0), x => x.Value),
-                    -Sum(period.Where(x => x.Quantity < 0), x => x.Quantity), -Sum(period.Where(x => x.Quantity < 0), x => x.Value),
+                    Sum(received, x => x.Quantity), Sum(received, x => x.Value),
+                    -Sum(issued, x => x.Quantity), -Sum(issued, x => x.Value),
                     Sum(group, x => x.Quantity), Sum(group, x => x.Value));
             }).OrderBy(x => x.Key.WarehouseId).ThenBy(x => x.Key.ProductId).ToArray();
         });
 
     public InventorySession Reconciliation(Guid inventoryId) => Run(Permission.Read, s => Get(s.Inventories, inventoryId));
 
-    // Each export obtains authorized, detached report data before calling external rendering code.
+    // Данные отчёта получаем в транзакции, а файл формируем уже после её закрытия.
     public ReportFile ExportBalances(ExportFormat format, Guid? warehouseId = null)
     {
         Rules.Defined(format);

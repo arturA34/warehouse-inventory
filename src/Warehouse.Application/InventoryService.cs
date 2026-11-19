@@ -46,23 +46,34 @@ public sealed class InventoryService(IUnitOfWork work, ICurrentUser user, IClock
     public InventorySession Complete(Guid id) => Run(Permission.Inventory, s =>
     {
         var inventory = Get(s.Inventories, id);
-        // Validate the state and complete counts before creating any acts.
         Rules.Require(inventory.Status == InventoryStatus.Active && inventory.Lines.All(x => x.ActualQuantity != null),
             ErrorCode.InvalidState, "Inventory must be active and fully counted.");
-        var documents = new List<Guid>();
-        foreach (var surplus in new[] { true, false })
+        var now = Clock.UtcNow;
+        var surplus = new List<DocumentLine>();
+        var shortage = new List<DocumentLine>();
+        foreach (var line in inventory.Lines)
         {
-            var lines = inventory.Lines.Where(x => surplus ? x.Difference > 0 : x.Difference < 0)
-                .Select(x => new DocumentLine(x.ProductId, Math.Abs(x.Difference!.Value), surplus ? x.SurplusPrice() : null)).ToArray();
-            if (lines.Length == 0) continue;
-            var kind = surplus ? DocumentKind.InventorySurplus : DocumentKind.InventoryShortage;
-            var draft = StockDocument.Draft(Guid.NewGuid(), kind, inventory.WarehouseId, null, lines, Clock.UtcNow, id);
+            var difference = line.Difference!.Value;
+            if (difference > 0)
+                surplus.Add(new DocumentLine(line.ProductId, difference, line.SurplusPrice()));
+            if (difference < 0)
+                shortage.Add(new DocumentLine(line.ProductId, -difference));
+        }
+
+        var documents = new List<Guid>();
+        void PostAct(DocumentKind kind, List<DocumentLine> lines)
+        {
+            if (lines.Count == 0) return;
+            var draft = StockDocument.Draft(Guid.NewGuid(), kind, inventory.WarehouseId, null, lines, now, id);
             s.Documents.Add(draft);
-            DocumentService.PostInSession(s, draft, Clock.UtcNow, id);
+            DocumentService.PostInSession(s, draft, now, id);
             Audit(s, "InventoryActPosted", draft.Id);
             documents.Add(draft.Id);
         }
-        var completed = inventory.Complete(documents, Clock.UtcNow);
+
+        PostAct(DocumentKind.InventorySurplus, surplus);
+        PostAct(DocumentKind.InventoryShortage, shortage);
+        var completed = inventory.Complete(documents, now);
         s.Inventories.Update(completed);
         Audit(s, "InventoryCompleted", id);
         return completed;

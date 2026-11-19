@@ -5,10 +5,13 @@ public enum Permission { Read, ManageCatalog, ManageWarehouses, ManageDocuments,
 
 public static class AccessPolicy
 {
-    public static bool Allows(Role role, Permission permission) => Enum.IsDefined(role) && Enum.IsDefined(permission) &&
-        (role == Role.Administrator || permission == Permission.Read ||
-         role == Role.Storekeeper && permission is Permission.ManageCatalog or Permission.ManageDocuments ||
-         role == Role.Auditor && permission is Permission.Inventory or Permission.ReadAudit);
+    public static bool Allows(Role role, Permission permission) => role switch
+    {
+        Role.Administrator => Enum.IsDefined(permission),
+        Role.Storekeeper => permission is Permission.Read or Permission.ManageCatalog or Permission.ManageDocuments,
+        Role.Auditor => permission is Permission.Read or Permission.Inventory or Permission.ReadAudit,
+        _ => false
+    };
 }
 
 public sealed record UserAccount

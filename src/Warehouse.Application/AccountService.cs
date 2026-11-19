@@ -11,35 +11,34 @@ public sealed class AccountService(IUnitOfWork work, ICurrentUser user, IClock c
     {
         var normalized = Rules.Text(login);
         Rules.Require(!string.IsNullOrEmpty(password), ErrorCode.Validation, "Password is required.");
-        // Commit failed attempts before reporting the authentication error to the caller.
-        var outcome = Transaction(s =>
+        // Сначала сохраняем неудачную попытку, потом сообщаем об ошибке входа.
+        var outcome = Transaction<(SignInResult? User, ErrorCode? Error)>(s =>
         {
             var account = s.Users.ByLogin(normalized);
             if (account == null)
             {
                 s.Audit.Add(new AuditEntry(Guid.NewGuid(), null, "UnknownLoginFailed", null, Clock.UtcNow));
-                return (Account: (UserAccount?)null, Error: (ErrorCode?)ErrorCode.InvalidCredentials);
+                return (null, ErrorCode.InvalidCredentials);
             }
             if (!account.IsEnabled || account.IsLocked)
             {
                 s.Audit.Add(new AuditEntry(Guid.NewGuid(), account.Id, "LockedLoginRejected", account.Id, Clock.UtcNow));
-                return (Account: (UserAccount?)null, Error: (ErrorCode?)ErrorCode.AccountLocked);
+                return (null, ErrorCode.AccountLocked);
             }
             if (!passwords.Verify(password, account.PasswordHash))
             {
                 var failed = account.FailedLogin();
                 s.Users.Update(failed);
                 s.Audit.Add(new AuditEntry(Guid.NewGuid(), account.Id, "LoginFailed", account.Id, Clock.UtcNow));
-                return (Account: (UserAccount?)null, Error: (ErrorCode?)(failed.IsLocked ? ErrorCode.AccountLocked : ErrorCode.InvalidCredentials));
+                return (null, failed.IsLocked ? ErrorCode.AccountLocked : ErrorCode.InvalidCredentials);
             }
             var authenticated = account.ResetFailures();
             s.Users.Update(authenticated);
             s.Audit.Add(new AuditEntry(Guid.NewGuid(), account.Id, "LoginSucceeded", account.Id, Clock.UtcNow));
-            return (Account: (UserAccount?)authenticated, Error: (ErrorCode?)null);
+            return (new SignInResult(authenticated.Id, authenticated.Login, authenticated.Role), null);
         });
         if (outcome.Error is { } error) throw new WarehouseException(error, "Sign-in failed.");
-        var result = outcome.Account!;
-        return new SignInResult(result.Id, result.Login, result.Role);
+        return outcome.User!;
     }
 
     public UserAccount CreateUser(string login, string password, Role role) => Run(Permission.ManageUsers, s =>

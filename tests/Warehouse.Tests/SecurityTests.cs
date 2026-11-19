@@ -4,7 +4,7 @@ public sealed class SecurityTests
 {
     public static IEnumerable<object[]> PermissionCases()
     {
-        // Expected role matrix is specified independently of AccessPolicy.
+        // Ожидаемые права задаём отдельно, чтобы тест не повторял расчёт AccessPolicy.
         var matrix = new Dictionary<Role, Permission[]>
         {
             [Role.Administrator] = [Permission.Read, Permission.ManageCatalog, Permission.ManageWarehouses, Permission.ManageDocuments,
