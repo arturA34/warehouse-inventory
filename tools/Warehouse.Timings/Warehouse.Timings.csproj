@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Warehouse.Application/Warehouse.Application.csproj" />
+    <Compile Include="../../tests/Warehouse.Tests/Support/MemoryWork.cs" Link="MemoryWork.cs" />
+  </ItemGroup>
+</Project>
