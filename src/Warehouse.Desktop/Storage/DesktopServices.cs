@@ -18,6 +18,9 @@ internal sealed class DesktopSession(StorageConnection storage)
     private readonly CurrentUser user = new();
     private readonly SystemClock clock = new();
 
+    public CatalogService Catalog => new(storage.Work, user, clock);
+    public ReportService Reports => new(storage.Work, user, clock, storage.Exporter);
+
     public SignInResult SignIn(string login, string password)
     {
         var result = new AccountService(storage.Work, user, clock, storage.Passwords).SignIn(login, password);

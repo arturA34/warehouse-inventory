@@ -26,9 +26,29 @@ internal sealed class DemoStorage
             session.Users.Add(new UserAccount(Guid.NewGuid(), "admin", passwords.Hash("demo"), Role.Administrator));
             session.Users.Add(new UserAccount(Guid.NewGuid(), "keeper", passwords.Hash("demo"), Role.Storekeeper));
             session.Users.Add(new UserAccount(Guid.NewGuid(), "auditor", passwords.Hash("demo"), Role.Auditor));
+            SeedCatalog(session);
             return true;
         });
         return new StorageConnection(work, passwords, new UnavailableExporter());
+    }
+
+    private static void SeedCatalog(IWarehouseSession session)
+    {
+        var main = new WarehouseSite(Guid.NewGuid(), "Основной склад");
+        var reserve = new WarehouseSite(Guid.NewGuid(), "Резервный склад");
+        session.Warehouses.Add(main);
+        session.Warehouses.Add(reserve);
+
+        var tape = new Product(Guid.NewGuid(), "UP-001", "00123", "Лента упаковочная", "шт.");
+        var boxes = new Product(Guid.NewGuid(), "UP-002", "00456", "Коробка картонная", "шт.");
+        var archive = new Product(Guid.NewGuid(), "UP-003", "00789", "Пакет бумажный", "шт.", isActive: false);
+        foreach (var product in new[] { tape, boxes, archive })
+            session.Products.Add(product);
+
+        var tapeKey = new StockKey(main.Id, tape.Id);
+        session.Stock.Put(new StockBalance(tapeKey, 12, 360));
+        session.Minimums.Add(new MinimumStock(Guid.NewGuid(), tapeKey, 12));
+        session.Minimums.Add(new MinimumStock(Guid.NewGuid(), new StockKey(reserve.Id, boxes.Id), 5));
     }
 
     private sealed class DemoPasswords : IPasswordHasher

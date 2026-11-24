@@ -1,17 +1,20 @@
 using System.Windows.Input;
 using Warehouse.Application;
+using Warehouse.Desktop.Storage;
 using Warehouse.Domain;
 
 namespace Warehouse.Desktop.ViewModels;
 
 public sealed class WorkspaceViewModel : ViewModel
 {
-    internal WorkspaceViewModel(SignInResult account, StorageChoice mode, string? storageNotice, Action signOut)
+    internal WorkspaceViewModel(SignInResult account, StorageChoice mode, string? storageNotice,
+        DesktopSession session, Action signOut)
     {
         Account = account;
         StorageMode = mode.Name;
         StorageNotice = storageNotice;
         SignOut = new Command(signOut);
+        Catalog = new CatalogViewModel(session.Catalog, session.Reports, Allows(Permission.ManageCatalog));
     }
 
     public SignInResult Account { get; }
@@ -19,6 +22,7 @@ public sealed class WorkspaceViewModel : ViewModel
     public string StorageMode { get; }
     public string? StorageNotice { get; }
     public ICommand SignOut { get; }
+    public CatalogViewModel Catalog { get; }
 
     public bool Allows(Permission permission) => AccessPolicy.Allows(Account.Role, permission);
 

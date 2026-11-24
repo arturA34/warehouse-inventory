@@ -24,7 +24,7 @@ public sealed class MainViewModel : ViewModel
     }
 
     private void ShowWorkspace(DesktopSession session, SignInResult account, StorageChoice mode) =>
-        Screen = new WorkspaceViewModel(account, mode, services.StorageNotice, () =>
+        Screen = new WorkspaceViewModel(account, mode, services.StorageNotice, session, () =>
         {
             session.SignOut();
             Screen = SignIn;

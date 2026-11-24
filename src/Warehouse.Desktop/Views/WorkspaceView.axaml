@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Warehouse.Desktop.ViewModels"
+             xmlns:views="using:Warehouse.Desktop.Views"
              x:Class="Warehouse.Desktop.Views.WorkspaceView"
              x:DataType="vm:WorkspaceViewModel">
   <DockPanel LastChildFill="True">
@@ -17,5 +18,6 @@
     </Border>
     <TextBlock DockPanel.Dock="Top" Text="{Binding StorageNotice}" Margin="24,12"
                Foreground="#4B5D74" TextWrapping="Wrap" />
+    <views:CatalogView DataContext="{Binding Catalog}" Margin="24,0,24,18" />
   </DockPanel>
 </UserControl>
