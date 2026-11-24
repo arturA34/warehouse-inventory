@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Warehouse.Desktop.ViewModels"
+        xmlns:views="using:Warehouse.Desktop.Views"
+        x:Class="Warehouse.Desktop.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Складской учёт" Width="1200" Height="800" MinWidth="850" MinHeight="620"
+        WindowStartupLocation="CenterScreen" Background="#F3F5F8">
+  <Window.DataTemplates>
+    <DataTemplate DataType="vm:SignInViewModel">
+      <views:SignInView />
+    </DataTemplate>
+    <DataTemplate DataType="vm:WorkspaceViewModel">
+      <views:WorkspaceView />
+    </DataTemplate>
+  </Window.DataTemplates>
+  <ContentControl Content="{Binding Screen}" />
+</Window>

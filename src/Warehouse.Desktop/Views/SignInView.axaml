@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Warehouse.Desktop.ViewModels"
+             x:Class="Warehouse.Desktop.Views.SignInView"
+             x:DataType="vm:SignInViewModel">
+  <ScrollViewer>
+    <Border Width="420" Padding="28" Margin="24" CornerRadius="12" Background="White"
+            HorizontalAlignment="Center" VerticalAlignment="Center" BorderBrush="#DCE3EC" BorderThickness="1">
+      <StackPanel Spacing="15">
+        <TextBlock Classes="title" Text="Складской учёт" />
+        <Border Padding="12" Background="#EDF3FB" CornerRadius="5" IsVisible="{Binding IsDemo}">
+          <StackPanel Spacing="5">
+            <TextBlock Text="{Binding StorageNotice}" TextWrapping="Wrap" />
+            <TextBlock Text="Логины admin, keeper, auditor. Пароль demo." TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+        <StackPanel Spacing="12" IsEnabled="{Binding !IsBusy}">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Режим хранения" />
+            <ComboBox AutomationProperties.Name="Режим хранения" ItemsSource="{Binding Modes}"
+                      SelectedItem="{Binding SelectedMode}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Логин" />
+            <TextBox AutomationProperties.Name="Логин" Text="{Binding Login}" />
+          </StackPanel>
+          <StackPanel Spacing="4">
+            <TextBlock Text="Пароль" />
+            <TextBox x:Name="PasswordBox" AutomationProperties.Name="Пароль" PasswordChar="●" />
+          </StackPanel>
+          <Button Content="Войти" Classes="accent" IsDefault="True" Click="OnSignIn"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        </StackPanel>
+        <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}" />
+        <TextBlock AutomationProperties.LiveSetting="Polite" Classes="error" Text="{Binding Error}" />
+      </StackPanel>
+    </Border>
+  </ScrollViewer>
+</UserControl>
