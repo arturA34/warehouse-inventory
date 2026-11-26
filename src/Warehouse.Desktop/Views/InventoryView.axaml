@@ -85,9 +85,9 @@
               </ListBox.ItemTemplate>
             </ListBox>
             <WrapPanel Grid.Row="3" ItemSpacing="8" IsVisible="{Binding CanEnterCount}">
-              <NumericUpDown Width="135" Value="{Binding Actual}" Minimum="0" ShowButtonSpinner="False"
+              <NumericUpDown Width="135" Value="{Binding Actual}" Minimum="0" Maximum="79228162514264337593543950335" ShowButtonSpinner="False"
                              Watermark="Факт" AutomationProperties.Name="Фактическое количество" />
-              <NumericUpDown Width="160" Value="{Binding Cost}" Minimum="0" ShowButtonSpinner="False"
+              <NumericUpDown Width="160" Value="{Binding Cost}" Minimum="0" Maximum="79228162514264337593543950335" ShowButtonSpinner="False"
                              Watermark="Цена излишка" AutomationProperties.Name="Цена излишка"
                              IsVisible="{Binding NeedsCost}" />
               <Button Content="Сохранить факт" Command="{Binding SaveCount}" />

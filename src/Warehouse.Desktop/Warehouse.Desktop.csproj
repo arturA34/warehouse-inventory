@@ -11,5 +11,6 @@
     <PackageReference Include="QuestPDF" Version="2026.9.2" />
     <ProjectReference Include="../Warehouse.Application/Warehouse.Application.csproj" />
     <InternalsVisibleTo Include="Warehouse.Tests" />
+    <InternalsVisibleTo Include="Warehouse.Timings" />
   </ItemGroup>
 </Project>

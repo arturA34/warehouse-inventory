@@ -45,7 +45,7 @@ public sealed class DocumentsViewModel : OperationViewModel
         CanManage = canManage;
         this.canReverse = canReverse;
         Picker = new ProductPickerViewModel(catalog);
-        Refresh = new Command(() => Run(() => Reload(document)));
+        Refresh = new Command(() => Run(() => Reload(document is null ? null : documents.GetDocument(document.Id))));
         New = new Command(() => Run(() => { if (CanManage) Open(null); }));
         AddLine = new Command(() => Run(AddSelectedProduct));
         RemoveLine = new RemoveDocumentLineCommand(this);
@@ -84,9 +84,11 @@ public sealed class DocumentsViewModel : OperationViewModel
     public bool CanEdit => CanManage && (document is null || document is { Status: DocumentStatus.Draft, InventoryId: null });
     public bool CanPost => CanEdit && document is not null;
     public bool CanReverse => canReverse && document is { Status: DocumentStatus.Posted };
-    public bool IsTransfer => Kind?.Kind == DocumentKind.Transfer;
-    public bool HasPrice => Kind?.Kind is DocumentKind.Receipt or DocumentKind.InventorySurplus;
-    public string Heading => document is null ? "Новый документ" : $"{Kind?.Name} · {StatusName(document.Status)} · № {document.Number?.ToString() ?? "—"}";
+    private DocumentKind? CurrentKind => document?.Kind ?? Kind?.Kind;
+    public bool IsTransfer => CurrentKind == DocumentKind.Transfer;
+    public bool HasPrice => CurrentKind is DocumentKind.Receipt or DocumentKind.InventorySurplus;
+    public string Heading => document is null ? "Новый документ" :
+        $"{Kinds.Single(x => x.Kind == document.Kind).Name} · {StatusName(document.Status)} · № {document.Number?.ToString() ?? "—"}";
     public string WarehouseSummary => document is null ? "" : WarehousePath(document);
 
     public IReadOnlyList<DocumentListItem> Entries { get => entries; private set => Set(ref entries, value); }
@@ -160,6 +162,8 @@ public sealed class DocumentsViewModel : OperationViewModel
         Notify(nameof(CanEdit));
         Notify(nameof(CanPost));
         Notify(nameof(CanReverse));
+        Notify(nameof(IsTransfer));
+        Notify(nameof(HasPrice));
     }
 
     private void AddSelectedProduct()

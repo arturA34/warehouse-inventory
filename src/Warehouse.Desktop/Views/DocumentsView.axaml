@@ -67,10 +67,10 @@
                 <DataTemplate DataType="vm:DocumentLineDraft">
                   <Grid ColumnDefinitions="*,105,105,35" ColumnSpacing="8" Margin="0,0,0,6">
                     <TextBlock Text="{Binding Item}" VerticalAlignment="Center" TextWrapping="Wrap" />
-                    <NumericUpDown Grid.Column="1" Value="{Binding Quantity}" Minimum="0" ShowButtonSpinner="False"
+                    <NumericUpDown Grid.Column="1" Value="{Binding Quantity}" Minimum="0" Maximum="79228162514264337593543950335" ShowButtonSpinner="False"
                                    IsReadOnly="{Binding !$parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).CanEdit}"
                                    AutomationProperties.Name="Количество товара" />
-                    <NumericUpDown Grid.Column="2" Value="{Binding UnitCost}" Minimum="0" ShowButtonSpinner="False"
+                    <NumericUpDown Grid.Column="2" Value="{Binding UnitCost}" Minimum="0" Maximum="79228162514264337593543950335" ShowButtonSpinner="False"
                                    IsVisible="{Binding $parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).HasPrice}"
                                    IsReadOnly="{Binding !$parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).CanEdit}"
                                    AutomationProperties.Name="Стоимость единицы" />
