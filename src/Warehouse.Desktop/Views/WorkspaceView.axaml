@@ -18,6 +18,13 @@
     </Border>
     <TextBlock DockPanel.Dock="Top" Text="{Binding StorageNotice}" Margin="24,12"
                Foreground="#4B5D74" TextWrapping="Wrap" />
-    <views:CatalogView DataContext="{Binding Catalog}" Margin="24,0,24,18" />
+    <TabControl Margin="24,0,24,18">
+      <TabItem Header="Справочник">
+        <views:CatalogView DataContext="{Binding Catalog}" Margin="0,8,0,0" />
+      </TabItem>
+      <TabItem Header="Документы">
+        <views:DocumentsView DataContext="{Binding Documents}" Margin="0,8,0,0" />
+      </TabItem>
+    </TabControl>
   </DockPanel>
 </UserControl>

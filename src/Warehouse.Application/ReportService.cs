@@ -39,6 +39,13 @@ public sealed class ReportService(IUnitOfWork work, ICurrentUser user, IClock cl
                 .OrderBy(x => x.OccurredAt).ThenBy(x => x.Id).ToArray();
         });
 
+    public IReadOnlyList<StockMovement> DocumentMovements(Guid documentId) => Run(Permission.Read, s =>
+    {
+        Get(s.Documents, documentId);
+        return s.Movements.All().Where(x => x.DocumentId == documentId)
+            .OrderBy(x => x.OccurredAt).ThenBy(x => x.ReversesMovementId != null).ThenBy(x => x.Id).ToArray();
+    });
+
     /// <summary>Начальный остаток считаем до начала периода. В обороты входят обе границы периода.</summary>
     public IReadOnlyList<TurnoverRow> Turnover(DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null, Guid? productId = null) =>
         Run(Permission.Read, s =>

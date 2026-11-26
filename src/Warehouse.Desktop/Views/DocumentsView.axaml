@@ -1,0 +1,116 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Warehouse.Desktop.ViewModels" xmlns:domain="using:Warehouse.Domain"
+             xmlns:views="using:Warehouse.Desktop.Views" x:Class="Warehouse.Desktop.Views.DocumentsView"
+             x:DataType="vm:DocumentsViewModel">
+  <Grid RowDefinitions="*,Auto,Auto" RowSpacing="5">
+    <Grid ColumnDefinitions="275,*" ColumnSpacing="12">
+      <Border Classes="panel">
+        <Grid RowDefinitions="Auto,*" RowSpacing="10">
+          <WrapPanel ItemSpacing="6">
+            <Button Content="Новый документ" Classes="accent" Command="{Binding New}" IsVisible="{Binding CanManage}" />
+            <Button Content="Обновить" Command="{Binding Refresh}" />
+          </WrapPanel>
+          <ListBox Grid.Row="1" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}"
+                   AutomationProperties.Name="Складские документы">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:DocumentListItem">
+                <StackPanel Spacing="3" Margin="0,5">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Warehouses}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Status}" Classes="muted" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+      <Border Grid.Column="1" Classes="panel">
+        <ScrollViewer>
+          <StackPanel Spacing="10" Margin="0,0,8,0">
+            <TextBlock Text="{Binding Heading}" Classes="title" />
+            <TextBlock Text="{Binding WarehouseSummary}" Classes="muted" TextWrapping="Wrap" />
+            <StackPanel Spacing="8" IsVisible="{Binding CanEditHeader}">
+              <TextBlock Text="Тип документа" />
+              <ComboBox ItemsSource="{Binding NewKinds}" SelectedItem="{Binding Kind}"
+                        HorizontalAlignment="Stretch" AutomationProperties.Name="Тип документа">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate DataType="vm:DocumentKindChoice"><TextBlock Text="{Binding Name}" /></DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding Source}" PlaceholderText="Склад"
+                          HorizontalAlignment="Stretch" AutomationProperties.Name="Исходный склад">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="domain:WarehouseSite"><TextBlock Text="{Binding Name}" /></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding Warehouses}" SelectedItem="{Binding Destination}"
+                          PlaceholderText="Склад назначения" IsVisible="{Binding IsTransfer}"
+                          HorizontalAlignment="Stretch" AutomationProperties.Name="Склад назначения">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate DataType="domain:WarehouseSite"><TextBlock Text="{Binding Name}" /></DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </Grid>
+            </StackPanel>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding CanEdit}">
+              <views:ProductPickerView DataContext="{Binding Picker}" />
+              <Button Grid.Column="1" Content="Добавить строку" Command="{Binding AddLine}" VerticalAlignment="Center" />
+            </Grid>
+            <Grid ColumnDefinitions="*,105,105,35" ColumnSpacing="8">
+              <TextBlock Text="Товар" Classes="muted" />
+              <TextBlock Grid.Column="1" Text="Количество" Classes="muted" />
+              <TextBlock Grid.Column="2" Text="Стоимость ед." Classes="muted" IsVisible="{Binding HasPrice}" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding Lines}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:DocumentLineDraft">
+                  <Grid ColumnDefinitions="*,105,105,35" ColumnSpacing="8" Margin="0,0,0,6">
+                    <TextBlock Text="{Binding Item}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <NumericUpDown Grid.Column="1" Value="{Binding Quantity}" Minimum="0" ShowButtonSpinner="False"
+                                   IsReadOnly="{Binding !$parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).CanEdit}"
+                                   AutomationProperties.Name="Количество товара" />
+                    <NumericUpDown Grid.Column="2" Value="{Binding UnitCost}" Minimum="0" ShowButtonSpinner="False"
+                                   IsVisible="{Binding $parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).HasPrice}"
+                                   IsReadOnly="{Binding !$parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).CanEdit}"
+                                   AutomationProperties.Name="Стоимость единицы" />
+                    <Button Grid.Column="3" Content="×" HorizontalAlignment="Stretch" AutomationProperties.Name="Удалить строку"
+                            IsVisible="{Binding $parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).CanEdit}"
+                            Command="{Binding $parent[views:DocumentsView].((vm:DocumentsViewModel)DataContext).RemoveLine}" CommandParameter="{Binding}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <WrapPanel ItemSpacing="8">
+              <Button Content="Сохранить черновик" Command="{Binding Save}" IsVisible="{Binding CanEdit}" />
+              <Button Content="Провести" Classes="accent" Command="{Binding Post}" IsVisible="{Binding CanPost}" />
+              <Button Content="Сторнировать" Command="{Binding Reverse}" IsVisible="{Binding CanReverse}" />
+            </WrapPanel>
+            <Separator />
+            <TextBlock Text="Движения по документу" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,2*,105,105" ColumnSpacing="8">
+              <TextBlock Text="Склад" Classes="muted" />
+              <TextBlock Grid.Column="1" Text="Товар" Classes="muted" />
+              <TextBlock Grid.Column="2" Text="Количество" Classes="muted" />
+              <TextBlock Grid.Column="3" Text="Стоимость" Classes="muted" />
+            </Grid>
+            <ItemsControl ItemsSource="{Binding History}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:DocumentMovementRow">
+                  <Grid ColumnDefinitions="*,2*,105,105" ColumnSpacing="8" Margin="0,4">
+                    <TextBlock Text="{Binding Warehouse}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1" Text="{Binding Product}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="2" Text="{Binding Quantity}" />
+                    <TextBlock Grid.Column="3" Text="{Binding Value}" />
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+    <TextBlock Grid.Row="1" Text="{Binding Status}" Foreground="#176544" AutomationProperties.LiveSetting="Polite" />
+    <TextBlock Grid.Row="2" Text="{Binding Error}" Classes="error" AutomationProperties.LiveSetting="Polite" />
+  </Grid>
+</UserControl>

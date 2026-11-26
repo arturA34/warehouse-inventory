@@ -15,6 +15,8 @@ public sealed class WorkspaceViewModel : ViewModel
         StorageNotice = storageNotice;
         SignOut = new Command(signOut);
         Catalog = new CatalogViewModel(session.Catalog, session.Reports, Allows(Permission.ManageCatalog));
+        Documents = new DocumentsViewModel(session.Documents, session.Catalog, session.Reports,
+            Allows(Permission.ManageDocuments), Allows(Permission.ReverseDocuments), () => Catalog.RefreshBalances.Execute(null));
     }
 
     public SignInResult Account { get; }
@@ -23,6 +25,7 @@ public sealed class WorkspaceViewModel : ViewModel
     public string? StorageNotice { get; }
     public ICommand SignOut { get; }
     public CatalogViewModel Catalog { get; }
+    public DocumentsViewModel Documents { get; }
 
     public bool Allows(Permission permission) => AccessPolicy.Allows(Account.Role, permission);
 

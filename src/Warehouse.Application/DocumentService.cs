@@ -35,11 +35,19 @@ public sealed class DocumentService(IUnitOfWork work, ICurrentUser user, IClock 
     public StockDocument GetDocument(Guid id) => Run(Permission.Read, s => Get(s.Documents, id));
     public IReadOnlyList<StockDocument> List() => Run(Permission.Read, s => s.Documents.All());
 
-    public StockDocument Post(Guid id) => Run(Permission.ManageDocuments, s =>
+    public StockDocument Post(Guid id) => Post(id, document => document);
+
+    public StockDocument Post(Guid id, IEnumerable<DocumentLine> lines)
+    {
+        var input = Snapshot(lines);
+        return Post(id, document => document.Edit(input()));
+    }
+
+    private StockDocument Post(Guid id, Func<StockDocument, StockDocument> prepare) => Run(Permission.ManageDocuments, s =>
     {
         var document = Get(s.Documents, id);
         Rules.Require(document.InventoryId == null, ErrorCode.Forbidden, "Inventory acts are managed by inventory completion.");
-        var posted = PostInSession(s, document, Clock.UtcNow);
+        var posted = PostInSession(s, prepare(document), Clock.UtcNow);
         Audit(s, "DocumentPosted", id);
         return posted;
     });
