@@ -61,6 +61,11 @@ public sealed partial class ReportsView : UserControl
         if (model is not null) await model.SaveAsync(ExportFormat.Excel, SaveFileAsync);
     }
 
+    private async void OnPdf(object? sender, RoutedEventArgs args)
+    {
+        if (model is not null) await model.SaveAsync(ExportFormat.Pdf, SaveFileAsync);
+    }
+
     private async Task<bool> SaveFileAsync(ReportFile file)
     {
         var provider = TopLevel.GetTopLevel(this)?.StorageProvider;

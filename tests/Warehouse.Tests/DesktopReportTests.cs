@@ -18,7 +18,8 @@ public sealed class DesktopReportTests
         world.Catalog.UpdateProduct(world.P.Id, "00123", world.P.Barcode, "Коробка Ё", "шт.");
         world.Receipt(2.5m, 3m);
         var audit = world.Inventories.Start(world.A.Id, [world.P.Id]);
-        var model = new ReportsViewModel(world.Reports, world.Catalog, world.Inventories, new ExcelReportExporter());
+        var model = new ReportsViewModel(world.Reports, world.Catalog, world.Inventories, new ExcelReportExporter(),
+            new PrintFormService(world.Work, world.Identity, world.Clock), world.Documents);
         model.RefreshSources();
         model.SelectedReport = model.Choices.Single(choice => choice.Kind == kind);
         model.From = model.Until = world.Clock.UtcNow.ToLocalTime();
@@ -43,7 +44,8 @@ public sealed class DesktopReportTests
     public async Task EmptySelectionStillExportsHeadings()
     {
         var world = new World();
-        var model = new ReportsViewModel(world.Reports, world.Catalog, world.Inventories, new ExcelReportExporter());
+        var model = new ReportsViewModel(world.Reports, world.Catalog, world.Inventories, new ExcelReportExporter(),
+            new PrintFormService(world.Work, world.Identity, world.Clock), world.Documents);
         await model.GenerateAsync();
         Assert.Empty(model.Table!.Rows);
         var file = await CaptureExcel(model);

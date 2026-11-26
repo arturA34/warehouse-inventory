@@ -4,7 +4,7 @@
              x:DataType="vm:ReportsViewModel">
   <Grid RowDefinitions="*,Auto,Auto" RowSpacing="6">
     <Border Classes="panel">
-      <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="12">
+      <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
         <WrapPanel ItemSpacing="8" LineSpacing="8" IsEnabled="{Binding !Busy}">
           <ComboBox Width="225" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedReport}"
                     AutomationProperties.Name="Вид отчёта">
@@ -13,15 +13,21 @@
             </ComboBox.ItemTemplate>
           </ComboBox>
           <ComboBox Width="185" ItemsSource="{Binding Warehouses}" SelectedItem="{Binding SelectedWarehouse}"
-                    IsVisible="{Binding !HasReconciliation}" AutomationProperties.Name="Склад отчёта">
+                    IsVisible="{Binding HasWarehouse}" AutomationProperties.Name="Склад отчёта">
             <ComboBox.ItemTemplate>
               <DataTemplate DataType="vm:ReportWarehouse"><TextBlock Text="{Binding Name}" /></DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <ComboBox Width="300" ItemsSource="{Binding Inventories}" SelectedItem="{Binding SelectedInventory}"
+          <ComboBox Width="300" ItemsSource="{Binding AvailableInventories}" SelectedItem="{Binding SelectedInventory}"
                     IsVisible="{Binding HasReconciliation}" AutomationProperties.Name="Ревизия для отчёта">
             <ComboBox.ItemTemplate>
               <DataTemplate DataType="vm:ReportInventory"><TextBlock Text="{Binding Name}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox Width="265" ItemsSource="{Binding Documents}" SelectedItem="{Binding SelectedDocument}"
+                    IsVisible="{Binding HasDocument}" AutomationProperties.Name="Документ для формы">
+            <ComboBox.ItemTemplate>
+              <DataTemplate DataType="vm:ReportDocument"><TextBlock Text="{Binding Name}" /></DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
           <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding HasPeriod}">
@@ -33,14 +39,19 @@
           <Button Content="Сформировать" Classes="accent" Click="OnGenerate" />
         </WrapPanel>
         <ProgressBar Grid.Row="1" IsIndeterminate="True" IsVisible="{Binding Busy}" />
-        <DataGrid x:Name="Preview" Grid.Row="2" IsReadOnly="True" GridLinesVisibility="Horizontal"
+        <ItemsControl Grid.Row="2" ItemsSource="{Binding Details}" />
+        <DataGrid x:Name="Preview" Grid.Row="3" IsReadOnly="True" GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column" HorizontalScrollBarVisibility="Auto"
                   IsVisible="{Binding HasTable}" AutomationProperties.Name="Данные отчёта" />
-        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-          <TextBlock Text="{Binding RowCount}" VerticalAlignment="Center" Classes="muted" />
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <StackPanel Spacing="4" VerticalAlignment="Center">
+            <TextBlock Text="{Binding RowCount}" Classes="muted" />
+            <TextBlock Text="{Binding Totals}" FontWeight="SemiBold" TextWrapping="Wrap" />
+          </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" IsEnabled="{Binding !Busy}"
                       IsVisible="{Binding HasTable}">
-            <Button Content="Сохранить Excel" Click="OnExcel" />
+            <Button Content="Сохранить Excel" Click="OnExcel" IsVisible="{Binding HasExcel}" />
+            <Button Content="Сохранить PDF" Click="OnPdf" />
           </StackPanel>
         </Grid>
       </Grid>

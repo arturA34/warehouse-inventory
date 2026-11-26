@@ -86,6 +86,9 @@ public enum ExportFormat { Excel, Pdf }
 public sealed record ReportTable(string Title, IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows)
 {
     public IReadOnlyList<int> NumericColumns { get; init; } = [];
+    public IReadOnlyList<string> Details { get; init; } = [];
+    public IReadOnlyList<string>? Totals { get; init; }
+    public bool DraftPrintForm { get; init; }
 }
 public sealed record ReportFile(string Name, string ContentType, ReadOnlyMemory<byte> Content);
 

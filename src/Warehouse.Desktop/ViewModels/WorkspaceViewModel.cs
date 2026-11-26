@@ -15,7 +15,8 @@ public sealed class WorkspaceViewModel : ViewModel
         StorageMode = mode.Name;
         StorageNotice = storageNotice;
         SignOut = new Command(signOut);
-        Reports = new ReportsViewModel(session.Reports, session.Catalog, session.Inventories, session.Exporter);
+        Reports = new ReportsViewModel(session.Reports, session.Catalog, session.Inventories, session.Exporter,
+            session.PrintForms, session.Documents);
         Catalog = new CatalogViewModel(session.Catalog, session.Reports, Allows(Permission.ManageCatalog));
         Documents = new DocumentsViewModel(session.Documents, session.Catalog, session.Reports,
             Allows(Permission.ManageDocuments), Allows(Permission.ReverseDocuments), () => Catalog.RefreshBalances.Execute(null));

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using QuestPDF.Infrastructure;
 using Warehouse.Application;
 using Warehouse.Desktop.Reports;
 using Warehouse.Domain;
@@ -30,7 +31,8 @@ internal sealed class DemoStorage
             SeedCatalog(session);
             return true;
         });
-        return new StorageConnection(work, passwords, new ExcelReportExporter());
+        return new StorageConnection(work, passwords,
+            new DesktopReportExporter(new ExcelReportExporter(), new PdfReportExporter(LicenseType.Community)));
     }
 
     private static void SeedCatalog(IWarehouseSession session)
