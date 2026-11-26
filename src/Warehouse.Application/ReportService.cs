@@ -67,38 +67,77 @@ public sealed class ReportService(IUnitOfWork work, ICurrentUser user, IClock cl
     public InventorySession Reconciliation(Guid inventoryId) => Run(Permission.Read, s => Get(s.Inventories, inventoryId));
 
     // Данные отчёта получаем в транзакции, а файл формируем уже после её закрытия.
-    public ReportFile ExportBalances(ExportFormat format, Guid? warehouseId = null)
+    public ReportFile ExportBalances(ExportFormat format, Guid? warehouseId = null) =>
+        Export(format, () => BalanceTable(warehouseId));
+
+    public ReportFile ExportMovements(ExportFormat format, DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null) =>
+        Export(format, () => MovementTable(from, to, warehouseId));
+
+    public ReportFile ExportTurnover(ExportFormat format, DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null) =>
+        Export(format, () => TurnoverTable(from, to, warehouseId));
+
+    public ReportFile ExportReconciliation(ExportFormat format, Guid inventoryId) =>
+        Export(format, () => ReconciliationTable(inventoryId));
+
+    public ReportTable BalanceTable(Guid? warehouseId = null)
     {
-        Rules.Defined(format);
-        var rows = Balances(warehouseId).Select(x => Row(x.WarehouseName, x.Sku, x.ProductName, N(x.Quantity), N(x.Value), N(x.AverageCost), N(x.Minimum))).ToArray();
-        return exporter.Export(new ReportTable("Stock balances", ["Warehouse", "SKU", "Product", "Quantity", "Value", "Average cost", "Minimum"], rows), format);
+        var rows = Balances(warehouseId).Select(x => Row(x.WarehouseName, x.Sku, x.ProductName,
+            N(x.Quantity), N(x.Value), N(x.AverageCost), N(x.Minimum))).ToArray();
+        return new("Stock balances", ["Warehouse", "SKU", "Product", "Quantity", "Value", "Average cost", "Minimum"], rows)
+            { NumericColumns = [3, 4, 5, 6] };
     }
 
-    public ReportFile ExportMovements(ExportFormat format, DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null)
+    public ReportTable MovementTable(DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null, bool useNames = false)
     {
-        Rules.Defined(format);
-        var rows = Movements(from, to, warehouseId).Select(x => Row(x.OccurredAt.ToString("O"), x.DocumentId.ToString(),
-            x.Key.WarehouseId.ToString(), x.Key.ProductId.ToString(), N(x.Quantity), N(x.Value), x.ReversesMovementId?.ToString() ?? "")).ToArray();
-        return exporter.Export(new ReportTable("Stock movements", ["Time", "Document", "Warehouse", "Product", "Quantity", "Value", "Reverses"], rows), format);
+        var movements = Movements(from, to, warehouseId);
+        var names = useNames ? ReadNames() : null;
+        var rows = movements.Select(x => Row(x.OccurredAt.ToString("O"), x.DocumentId.ToString(),
+            names?.Warehouse(x.Key.WarehouseId) ?? x.Key.WarehouseId.ToString(),
+            names?.Product(x.Key.ProductId) ?? x.Key.ProductId.ToString(),
+            N(x.Quantity), N(x.Value), x.ReversesMovementId?.ToString() ?? "")).ToArray();
+        return new("Stock movements", ["Time", "Document", "Warehouse", "Product", "Quantity", "Value", "Reverses"], rows)
+            { NumericColumns = [4, 5] };
     }
 
-    public ReportFile ExportTurnover(ExportFormat format, DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null)
+    public ReportTable TurnoverTable(DateTimeOffset from, DateTimeOffset to, Guid? warehouseId = null, bool useNames = false)
     {
-        Rules.Defined(format);
-        var rows = Turnover(from, to, warehouseId).Select(x => Row(x.Key.WarehouseId.ToString(), x.Key.ProductId.ToString(),
+        var turnover = Turnover(from, to, warehouseId);
+        var names = useNames ? ReadNames() : null;
+        var rows = turnover.Select(x => Row(names?.Warehouse(x.Key.WarehouseId) ?? x.Key.WarehouseId.ToString(),
+            names?.Product(x.Key.ProductId) ?? x.Key.ProductId.ToString(),
             N(x.OpeningQuantity), N(x.OpeningValue), N(x.ReceivedQuantity), N(x.ReceivedValue), N(x.IssuedQuantity), N(x.IssuedValue),
             N(x.ClosingQuantity), N(x.ClosingValue))).ToArray();
-        return exporter.Export(new ReportTable("Stock turnover", ["Warehouse", "Product", "Opening quantity", "Opening value", "Received quantity",
-            "Received value", "Issued quantity", "Issued value", "Closing quantity", "Closing value"], rows), format);
+        return new("Stock turnover", ["Warehouse", "Product", "Opening quantity", "Opening value", "Received quantity",
+            "Received value", "Issued quantity", "Issued value", "Closing quantity", "Closing value"], rows)
+            { NumericColumns = [2, 3, 4, 5, 6, 7, 8, 9] };
     }
 
-    public ReportFile ExportReconciliation(ExportFormat format, Guid inventoryId)
+    public ReportTable ReconciliationTable(Guid inventoryId, bool useNames = false)
+    {
+        var inventory = Reconciliation(inventoryId);
+        var names = useNames ? ReadNames() : null;
+        var rows = inventory.Lines.Select(x => Row(names?.Product(x.ProductId) ?? x.ProductId.ToString(),
+            N(x.BookQuantity), N(x.BookValue), x.ActualQuantity is { } actual ? N(actual) : "",
+            x.Difference is { } difference ? N(difference) : "")).ToArray();
+        return new("Inventory reconciliation", ["Product", "Book quantity", "Book value", "Actual quantity", "Difference"], rows)
+            { NumericColumns = [1, 2, 3, 4] };
+    }
+
+    private ReportFile Export(ExportFormat format, Func<ReportTable> prepare)
     {
         Rules.Defined(format);
-        var inventory = Reconciliation(inventoryId);
-        var rows = inventory.Lines.Select(x => Row(x.ProductId.ToString(), N(x.BookQuantity), N(x.BookValue),
-            x.ActualQuantity is { } actual ? N(actual) : "", x.Difference is { } difference ? N(difference) : "")).ToArray();
-        return exporter.Export(new ReportTable("Inventory reconciliation", ["Product", "Book quantity", "Book value", "Actual quantity", "Difference"], rows), format);
+        // Файл формируем после закрытия транзакции чтения.
+        return exporter.Export(prepare(), format);
+    }
+
+    private ReportNames ReadNames() => Run(Permission.Read, s => new ReportNames(
+        s.Warehouses.All().ToDictionary(site => site.Id, site => site.Name),
+        s.Products.All().ToDictionary(product => product.Id, product => $"{product.Sku} · {product.Name}")));
+
+    private sealed record ReportNames(Dictionary<Guid, string> Warehouses, Dictionary<Guid, string> Products)
+    {
+        public string Warehouse(Guid id) => Warehouses.GetValueOrDefault(id) ?? id.ToString();
+        public string Product(Guid id) => Products.GetValueOrDefault(id) ?? id.ToString();
     }
 
     private static string N(decimal value) => value.ToString("0.############################", CultureInfo.InvariantCulture);

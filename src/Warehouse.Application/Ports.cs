@@ -83,7 +83,10 @@ public interface IPasswordHasher
 }
 
 public enum ExportFormat { Excel, Pdf }
-public sealed record ReportTable(string Title, IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows);
+public sealed record ReportTable(string Title, IReadOnlyList<string> Columns, IReadOnlyList<IReadOnlyList<string>> Rows)
+{
+    public IReadOnlyList<int> NumericColumns { get; init; } = [];
+}
 public sealed record ReportFile(string Name, string ContentType, ReadOnlyMemory<byte> Content);
 
 /// <summary>За запись файлов отвечают ClosedXML и QuestPDF в инфраструктурном слое.</summary>

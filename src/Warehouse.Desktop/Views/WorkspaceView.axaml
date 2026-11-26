@@ -28,6 +28,9 @@
       <TabItem Header="Ревизии">
         <views:InventoryView DataContext="{Binding Inventories}" Margin="0,8,0,0" />
       </TabItem>
+      <TabItem Header="Отчёты">
+        <views:ReportsView DataContext="{Binding Reports}" Margin="0,8,0,0" />
+      </TabItem>
     </TabControl>
   </DockPanel>
 </UserControl>

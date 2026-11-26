@@ -15,6 +15,7 @@ public sealed class WorkspaceViewModel : ViewModel
         StorageMode = mode.Name;
         StorageNotice = storageNotice;
         SignOut = new Command(signOut);
+        Reports = new ReportsViewModel(session.Reports, session.Catalog, session.Inventories, session.Exporter);
         Catalog = new CatalogViewModel(session.Catalog, session.Reports, Allows(Permission.ManageCatalog));
         Documents = new DocumentsViewModel(session.Documents, session.Catalog, session.Reports,
             Allows(Permission.ManageDocuments), Allows(Permission.ReverseDocuments), () => Catalog.RefreshBalances.Execute(null));
@@ -38,7 +39,15 @@ public sealed class WorkspaceViewModel : ViewModel
     public CatalogViewModel Catalog { get; }
     public DocumentsViewModel Documents { get; }
     public InventoryViewModel Inventories { get; }
-    public int SelectedTab { get => selectedTab; set => Set(ref selectedTab, value); }
+    public ReportsViewModel Reports { get; }
+    public int SelectedTab
+    {
+        get => selectedTab;
+        set
+        {
+            if (Set(ref selectedTab, value) && value == 3) Reports.RefreshSources();
+        }
+    }
 
     public bool Allows(Permission permission) => AccessPolicy.Allows(Account.Role, permission);
 

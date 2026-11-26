@@ -4,6 +4,7 @@
              RequestedThemeVariant="Light">
   <Application.Styles>
     <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
     <Style Selector="TextBlock.title">
       <Setter Property="FontSize" Value="27" />
       <Setter Property="FontWeight" Value="SemiBold" />
