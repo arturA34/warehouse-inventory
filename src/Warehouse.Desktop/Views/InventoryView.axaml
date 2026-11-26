@@ -1,0 +1,115 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Warehouse.Desktop.ViewModels" xmlns:domain="using:Warehouse.Domain"
+             xmlns:views="using:Warehouse.Desktop.Views" x:Class="Warehouse.Desktop.Views.InventoryView"
+             x:DataType="vm:InventoryViewModel">
+  <Grid RowDefinitions="*,Auto,Auto" RowSpacing="5">
+    <Grid ColumnDefinitions="255,*" ColumnSpacing="12">
+      <Border Classes="panel">
+        <Grid RowDefinitions="Auto,*" RowSpacing="10">
+          <WrapPanel ItemSpacing="6">
+            <Button Content="Новая ревизия" Classes="accent" Command="{Binding New}" IsVisible="{Binding CanCount}" />
+            <Button Content="Обновить" Command="{Binding Refresh}" />
+          </WrapPanel>
+          <ListBox Grid.Row="1" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}"
+                   AutomationProperties.Name="Ревизии">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:InventoryListItem">
+                <StackPanel Spacing="3" Margin="0,5">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Status}" />
+                  <TextBlock Text="{Binding Date}" Classes="muted" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+      <Border Grid.Column="1" Classes="panel">
+        <Grid RowDefinitions="Auto,*" RowSpacing="12">
+          <TextBlock Text="{Binding Heading}" Classes="title" TextWrapping="Wrap" />
+          <ScrollViewer Grid.Row="1" IsVisible="{Binding CanStart}">
+            <StackPanel Spacing="9">
+              <ComboBox ItemsSource="{Binding Warehouses}" SelectedItem="{Binding Warehouse}" PlaceholderText="Склад"
+                        HorizontalAlignment="Stretch" AutomationProperties.Name="Склад ревизии">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate DataType="domain:WarehouseSite"><TextBlock Text="{Binding Name}" /></DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <views:ProductPickerView DataContext="{Binding Picker}" />
+                <Button Grid.Column="1" Content="Добавить позицию" Command="{Binding AddProduct}" VerticalAlignment="Center" />
+              </Grid>
+              <ListBox ItemsSource="{Binding Planned}" SelectedItem="{Binding PlannedProduct}" MaxHeight="190"
+                       AutomationProperties.Name="Выбранные позиции">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="domain:Product">
+                    <StackPanel Orientation="Horizontal" Spacing="7">
+                      <TextBlock Text="{Binding Sku}" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding Name}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <WrapPanel ItemSpacing="8">
+                <Button Content="Начать ревизию" Classes="accent" Command="{Binding Start}" />
+                <Button Content="Убрать позицию" Command="{Binding RemoveProduct}" />
+              </WrapPanel>
+            </StackPanel>
+          </ScrollViewer>
+          <Grid Grid.Row="1" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8" IsVisible="{Binding HasInventory}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding CanEdit}">
+              <TextBox x:Name="Scanner" Text="{Binding Barcode}" Watermark="Штрихкод · сканер с Enter"
+                       AutomationProperties.Name="Штрихкод ревизии" KeyDown="OnScannerKeyDown" />
+              <Button Grid.Column="1" Content="Учесть сканирование" Command="{Binding Scan}" />
+            </Grid>
+            <Grid Grid.Row="1" ColumnDefinitions="2*,*,*,*" ColumnSpacing="10" Margin="9,0">
+              <TextBlock Text="Товар" Classes="muted" />
+              <TextBlock Grid.Column="1" Text="Учёт" Classes="muted" />
+              <TextBlock Grid.Column="2" Text="Факт" Classes="muted" />
+              <TextBlock Grid.Column="3" Text="Разница" Classes="muted" />
+            </Grid>
+            <ListBox Grid.Row="2" ItemsSource="{Binding Rows}" SelectedItem="{Binding CurrentRow}"
+                     AutomationProperties.Name="Сличительная ведомость">
+              <ListBox.Styles>
+                <Style Selector="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch" /></Style>
+              </ListBox.Styles>
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:InventoryCountRow">
+                  <Grid ColumnDefinitions="2*,*,*,*" ColumnSpacing="10" Margin="0,4">
+                    <TextBlock Text="{Binding Name}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="1" Text="{Binding Line.BookQuantity}" />
+                    <TextBlock Grid.Column="2" Text="{Binding Actual}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Column="3" Text="{Binding Difference}" />
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <WrapPanel Grid.Row="3" ItemSpacing="8" IsVisible="{Binding CanEnterCount}">
+              <NumericUpDown Width="135" Value="{Binding Actual}" Minimum="0" ShowButtonSpinner="False"
+                             Watermark="Факт" AutomationProperties.Name="Фактическое количество" />
+              <NumericUpDown Width="160" Value="{Binding Cost}" Minimum="0" ShowButtonSpinner="False"
+                             Watermark="Цена излишка" AutomationProperties.Name="Цена излишка"
+                             IsVisible="{Binding NeedsCost}" />
+              <Button Content="Сохранить факт" Command="{Binding SaveCount}" />
+            </WrapPanel>
+            <WrapPanel Grid.Row="4" ItemSpacing="8" IsVisible="{Binding CanEdit}">
+              <Button Content="Завершить ревизию" Classes="accent" Command="{Binding Complete}" />
+              <Button Content="Отменить ревизию" Command="{Binding Cancel}" />
+            </WrapPanel>
+            <Grid Grid.Row="5" ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding HasActs}">
+              <ComboBox ItemsSource="{Binding Acts}" SelectedItem="{Binding SelectedAct}" HorizontalAlignment="Stretch"
+                        AutomationProperties.Name="Акты ревизии">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate DataType="vm:InventoryAct"><TextBlock Text="{Binding Name}" /></DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button Grid.Column="1" Content="Открыть акт" Command="{Binding OpenAct}" />
+            </Grid>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+    <TextBlock Grid.Row="1" Text="{Binding Status}" Foreground="#176544" AutomationProperties.LiveSetting="Polite" />
+    <TextBlock Grid.Row="2" Text="{Binding Error}" Classes="error" AutomationProperties.LiveSetting="Polite" />
+  </Grid>
+</UserControl>

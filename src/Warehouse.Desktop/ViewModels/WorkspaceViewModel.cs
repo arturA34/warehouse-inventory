@@ -7,6 +7,7 @@ namespace Warehouse.Desktop.ViewModels;
 
 public sealed class WorkspaceViewModel : ViewModel
 {
+    private int selectedTab;
     internal WorkspaceViewModel(SignInResult account, StorageChoice mode, string? storageNotice,
         DesktopSession session, Action signOut)
     {
@@ -17,6 +18,16 @@ public sealed class WorkspaceViewModel : ViewModel
         Catalog = new CatalogViewModel(session.Catalog, session.Reports, Allows(Permission.ManageCatalog));
         Documents = new DocumentsViewModel(session.Documents, session.Catalog, session.Reports,
             Allows(Permission.ManageDocuments), Allows(Permission.ReverseDocuments), () => Catalog.RefreshBalances.Execute(null));
+        Inventories = new InventoryViewModel(session.Inventories, session.Catalog, session.Documents, session.Reports,
+            Allows(Permission.Inventory), () =>
+            {
+                Catalog.RefreshBalances.Execute(null);
+                Documents.Refresh.Execute(null);
+            }, id =>
+            {
+                Documents.Show(id);
+                SelectedTab = 1;
+            });
     }
 
     public SignInResult Account { get; }
@@ -26,6 +37,8 @@ public sealed class WorkspaceViewModel : ViewModel
     public ICommand SignOut { get; }
     public CatalogViewModel Catalog { get; }
     public DocumentsViewModel Documents { get; }
+    public InventoryViewModel Inventories { get; }
+    public int SelectedTab { get => selectedTab; set => Set(ref selectedTab, value); }
 
     public bool Allows(Permission permission) => AccessPolicy.Allows(Account.Role, permission);
 

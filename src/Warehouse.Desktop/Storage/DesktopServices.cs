@@ -20,6 +20,7 @@ internal sealed class DesktopSession(StorageConnection storage)
 
     public CatalogService Catalog => new(storage.Work, user, clock);
     public DocumentService Documents => new(storage.Work, user, clock);
+    public InventoryService Inventories => new(storage.Work, user, clock);
     public ReportService Reports => new(storage.Work, user, clock, storage.Exporter);
 
     public SignInResult SignIn(string login, string password)
