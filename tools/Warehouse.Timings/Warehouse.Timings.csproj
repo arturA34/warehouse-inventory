@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/Warehouse.Application/Warehouse.Application.csproj" />
+    <ProjectReference Include="../../src/Warehouse.Desktop/Warehouse.Desktop.csproj" />
     <Compile Include="../../tests/Warehouse.Tests/Support/MemoryWork.cs" Link="MemoryWork.cs" />
   </ItemGroup>
 </Project>

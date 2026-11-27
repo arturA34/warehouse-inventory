@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
+using QuestPDF.Infrastructure;
 using Warehouse.Application;
+using Warehouse.Desktop.Reports;
 using Warehouse.Domain;
 
 namespace Warehouse.Desktop.Storage;
@@ -29,7 +31,8 @@ internal sealed class DemoStorage
             SeedCatalog(session);
             return true;
         });
-        return new StorageConnection(work, passwords, new UnavailableExporter());
+        return new StorageConnection(work, passwords,
+            new DesktopReportExporter(new ExcelReportExporter(), new PdfReportExporter(LicenseType.Community)));
     }
 
     private static void SeedCatalog(IWarehouseSession session)
@@ -73,9 +76,4 @@ internal sealed class DemoStorage
             Rfc2898DeriveBytes.Pbkdf2(password, salt, 100_000, HashAlgorithmName.SHA256, HashSize);
     }
 
-    private sealed class UnavailableExporter : IReportExporter
-    {
-        public ReportFile Export(ReportTable report, ExportFormat format) =>
-            throw new NotSupportedException("В демонстрационном хранилище экспорт не подключён.");
-    }
 }
